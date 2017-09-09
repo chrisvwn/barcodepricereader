@@ -87,8 +87,8 @@ class BarcodePriceReader {
 		//BufferedImage img=ImageIO.read(new File("/HelloOpenCV/lena.png"));
 		Mat tmp = img.clone();
 				
-		if (tmp.width() > 800)
-            while (tmp.width() > 800)// || img.height() > 600)
+		if (tmp.width() > 800 || tmp.height() > 800)
+            while (tmp.width() > 800 || tmp.height() > 800)
                 Imgproc.pyrDown(tmp, tmp);
 		
 		Image img2 = toBufferedImage(tmp);
@@ -458,7 +458,7 @@ class BarcodePriceReader {
         
         // Blur helps to decrease the amount of detected edges
     	
-    	Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(21,7));
+    	Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(23,5));
 
         Mat sqKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(21,21));
     	
@@ -479,26 +479,27 @@ class BarcodePriceReader {
     	//displayImage(gray, "blackhat");
     	
     	//Threshold the image
-    	//Imgproc.threshold(gray, gray, 100, 255, Imgproc.THRESH_BINARY);
+    	//Imgproc.adaptiveThreshold(gray, gray, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY,15,-5);
     	
-    	//displayImage(gray, "blackhat thresh");
+    	//displayImage(gray, "adaptive thresh");
     	
     	//compute the Scharr gradient of the blackhat image and scale the
     	//result into the range [0, 255]
     	Mat gradX = new Mat();
     	//gradX = cv2.Sobel(blackhat, ddepth=cv2.CV_32F, dx=1, dy=0, ksize=-1)
-    	Imgproc.Sobel(gray, gradX, CvType.CV_32F, 1, 0, -1, 1, 0);
-    	//gradX = Matrix absolute(gradX)
+    	//Imgproc.Sobel(gray, gradX, CvType.CV_32F, 1, 0, -1, 1, 0);
+    	//Core.convertScaleAbs(gradX, gradX);
+    	
+    	//displayImage(gradX, "sobel");
     	
         Mat filtered = new Mat();
 
-        //Imgproc.blur(imgThreshed, filtered, new Size(9, 9));
         filtered = gray.clone();
         
     	//perform a series of erosions and dilations
-    	//Imgproc.erode(filtered, filtered, new Mat(), new Point(-1,-1), 1);
+    	//Imgproc.erode(filtered, filtered, new Mat(), new Point(-1,-1), 2);
     	
-    	Imgproc.dilate(filtered, filtered, new Mat(), new Point(-1,-1), 30);
+    	Imgproc.dilate(filtered, filtered, new Mat(), new Point(-1,-1), 10);
         
         //displayImage(filtered, "erode/dilate");
 
@@ -516,6 +517,13 @@ class BarcodePriceReader {
         Imgproc.dilate(edges, dilated_edges, new Mat(), new Point(-1, -1), 2, 1, new Scalar(0,255,0)); // default 3x3 kernel
         //displayImage(dilated_edges, "dilated edges");
 
+        Imgproc.dilate(dilated_edges, dilated_edges, new Mat(), new Point(-1,-1), 20);
+        
+        //displayImage(dilated_edges, "dilated edges");
+        
+        Imgproc.Canny(dilated_edges, dilated_edges, 250, 255);
+        //displayImage(dilated_edges, "edges2");
+        
         edges = null;
         
         // Find contours and store them in a list
