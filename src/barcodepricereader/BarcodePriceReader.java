@@ -40,6 +40,8 @@ import com.google.zxing.*;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 
+import net.sourceforge.tess4j.*;
+
 class BarcodePriceReader {
     // The color of the outline drawn around the detected image.
     private final Scalar mLineColor = new Scalar(0, 255, 0);
@@ -458,7 +460,7 @@ class BarcodePriceReader {
         
         // Blur helps to decrease the amount of detected edges
     	
-    	Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(23,5));
+    	Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(9,1));
 
         Mat sqKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(21,21));
     	
@@ -962,12 +964,15 @@ class BarcodePriceReader {
         }
         
         int i = 0;
-        Result result = null;
+        Result barcodeResult = null;
+        String tessResult = null;
         Mat detectedLabel;
         Rect bRect;
         LuminanceSource source;
         BinaryBitmap bitmap;
         Reader reader;
+        ITesseract tessInstance = new Tesseract();
+
         
         if(squares == null)
         {
@@ -976,7 +981,7 @@ class BarcodePriceReader {
         	System.out.println("Barcode not found.");
         }
         else
-        while(result == null && i < squares.size())
+        while(i < squares.size())
         {
 	        bRect = Imgproc.boundingRect(squares.get(i));
 	        
@@ -984,66 +989,54 @@ class BarcodePriceReader {
 	        
 	        displayImage(detectedLabel, Integer.toString(i));
 	        
-	        try{
+       
+	        try
+	        {
 	            //InputStream barCodeInputStream = new FileInputStream("c:\\users\\chris\\Documents\\detectedID.png");
 	            //BufferedImage barCodeBufferedImage = ImageIO.read(barCodeInputStream);
 	
 		        source = new BufferedImageLuminanceSource((BufferedImage) toBufferedImage(detectedLabel));
 		        bitmap = new BinaryBitmap(new HybridBinarizer(source));
 		        reader = new MultiFormatReader();
-		        result = reader.decode(bitmap);
-		        
-		        System.out.println(result);
-	        	}
-	            catch(Exception e)
-	            {
-	            	//System.out.println("Barcode not found.");
-	            	System.out.println("Barcode not found.");
-	            }
-	        i++;
+
+		        barcodeResult = reader.decode(bitmap);
+		        System.out.println(barcodeResult);
+
+		        tessResult = tessInstance.doOCR((BufferedImage) toBufferedImage(detectedLabel));
+		        System.out.println(tessResult);
+        	}
+            catch(Exception e)
+            {
+            	//System.out.println("Barcode not found.");
+            	System.out.println("Barcode not found.");
 	        }
+	        
+	        	source = null;
+	        	bitmap = null;
+	        	reader=null;
+	        	barcodeResult = null;
+	        	tessResult = null;
+	        	
+	        	i++;
+	       	}
         // Save the visualized detection.
         //System.out.println("Writing "+ outFile);
         //Imgcodecs.imwrite(outFile, img);
     }
     
-    public static void main(String[] args) {
-    	System.out.print(args[0] + ": ");
-    	
-    	System.gc();
-    	
-        try{
-        	new BarcodePriceReader().run(args[0]);
-        	System.gc();
-        }	
-        
-//        	File dir = new File(args[0]);
-//        	File[] files = dir.listFiles(new FileFilter() {
-//        	    public boolean accept(File dir, String name) {
-//        	        return name.toLowerCase().endsWith(".jpg");
-//        	    }
-//
-//				@Override
-//				public boolean accept(File arg0) {
-//					// TODO Auto-generated method stub
-//					return arg0.toString().toLowerCase().endsWith(".jpg");
-//				}
-//        	});
-//            	if (files.length == 0) {
-//            	    System.out.println("The directory is empty");
-//            	} else {
-//            	    for (File aFile : files) {
-//            	    	
-//            	    	String fName = aFile.toString();
-//            	    	
-//            	    	System.out.print(fName + ": ");
-//            	    	new BarcodePriceReader().run(fName, "");
-//            	    }
-//            	}
-//	  }
-	  catch(Exception e)
-	  {
-	      e.printStackTrace();
-	  }
-    }
+    public static void main(String[] args)
+    {
+		System.out.print(args[0] + ": ");
+		
+		System.gc();
+		
+		try{
+			new BarcodePriceReader().run(args[0]);
+			System.gc();
+		}	
+		catch(Exception e)
+		{
+		    e.printStackTrace();
+		}
+	}
 }
