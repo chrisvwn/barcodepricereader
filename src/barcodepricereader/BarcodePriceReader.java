@@ -114,14 +114,14 @@ class BarcodePriceReader {
 		frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 		
 		try{
-			Thread.sleep(3);
+			Thread.sleep(3000);
 		}
 			catch(Exception e){
 		}
 		
-		//frame.setVisible(false);
+		frame.setVisible(false);
 		
-		//frame.dispose();
+		frame.dispose();
 		
 		img2 = null;
 		
@@ -476,7 +476,7 @@ class BarcodePriceReader {
     	
     	Imgproc.morphologyEx(gray, gray, Imgproc.MORPH_BLACKHAT, rectKernel);
         
-    	displayImage(gray, "blackhat");
+    	//displayImage(gray, "blackhat");
     	
     	//Threshold the image
     	//Imgproc.threshold(gray, gray, 100, 255, Imgproc.THRESH_BINARY);
@@ -496,25 +496,25 @@ class BarcodePriceReader {
         filtered = gray.clone();
         
     	//perform a series of erosions and dilations
-    	Imgproc.erode(filtered, filtered, new Mat(), new Point(-1,-1), 1);
+    	//Imgproc.erode(filtered, filtered, new Mat(), new Point(-1,-1), 1);
     	
-    	Imgproc.dilate(filtered, filtered, new Mat(), new Point(-1,-1), 20);
+    	Imgproc.dilate(filtered, filtered, new Mat(), new Point(-1,-1), 30);
         
-        displayImage(filtered, "erode/dilate");
+        //displayImage(filtered, "erode/dilate");
 
         // Detect edges
         Mat edges = new Mat();
         int thresh = 250;
         //Imgproc.Canny(filtered, edges, thresh, thresh*2);
         Imgproc.Canny(filtered, edges, 50, 255);
-        displayImage(edges, "edges");
+        //displayImage(edges, "edges");
 
         filtered = null;
         
         // Dilate helps to connect nearby line segments
         Mat dilated_edges = new Mat();
         Imgproc.dilate(edges, dilated_edges, new Mat(), new Point(-1, -1), 2, 1, new Scalar(0,255,0)); // default 3x3 kernel
-        displayImage(dilated_edges, "dilated edges");
+        //displayImage(dilated_edges, "dilated edges");
 
         edges = null;
         
@@ -698,11 +698,12 @@ class BarcodePriceReader {
         return squares.get(max_square_idx);
     }
 
-    private Mat findLabel(Mat src)
+    private List<MatOfPoint> findLabel(Mat src)
     {
         if (src.empty())
         {
-            return src;
+            //return src;
+        	return(null);
         }
 
         int maxLen = 800;
@@ -727,7 +728,7 @@ class BarcodePriceReader {
         findSquares(src, squares);
 
         if (squares.size() == 0)
-            return src;
+            return null;
 
         // Draw all detected squares
         Mat src_squares = src.clone();
@@ -741,7 +742,7 @@ class BarcodePriceReader {
         largest_square = findLargestSquare(squares);
 
         if (largest_square == null)
-            return src;
+            return null;
 /*
         if(Imgproc.contourArea(largest_square) > src.height()*src.width()*0.10)
         {
@@ -883,7 +884,8 @@ class BarcodePriceReader {
 
         //displayImage(src, "cropped to id only");
 
-        return src;
+        //return src;
+        return squares;
     }
     
     //END IMPORTED
@@ -908,13 +910,13 @@ class BarcodePriceReader {
         
         //IMPORTED
         
-        Mat detectedID = findLabel(img);
+        //Mat detectedID = findLabel(img);
         
-        //largest_square = findLabel
+        List<MatOfPoint> squares = findLabel(img);
 
-        temp = detectedID.clone();
+        //temp = detectedID.clone();
         
-        displayImage(temp, "detected label");
+        //displayImage(temp, "detected label");
         
         temp = null;
         
@@ -932,28 +934,66 @@ class BarcodePriceReader {
         //displayImage(roi, "found MRZ?");
         //Imgcodecs.imwrite("/home/chris/Documents/mrz_roi.jpg", roi);
 
-        //Rect bRect = Imgproc.boundingRect(largest_square);
+        Mat src = img.clone();
         
-        //src = src.submat(bRect);
-
+        int maxLen = 800;
         
-        try{
-            //InputStream barCodeInputStream = new FileInputStream("c:\\users\\chris\\Documents\\detectedID.png");
-            //BufferedImage barCodeBufferedImage = ImageIO.read(barCodeInputStream);
-
-	        LuminanceSource source = new BufferedImageLuminanceSource((BufferedImage) toBufferedImage(detectedID));
-	        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
-	        Reader reader = new MultiFormatReader();
-	        Result result = reader.decode(bitmap);
-	        
-	        System.out.println(result);
+        if(img.width() > src.height())
+        {
+            int ratio = src.width()/maxLen;
+        	if (src.width() > maxLen)
+       			// load the image, resize it, and convert it to grayscale
+       			src = resize(src, maxLen, src.height()/ratio, Imgproc.INTER_AREA);
         }
-            catch(Exception e)
-            {
-            	//System.out.println("Barcode not found.");
-            	System.out.println("Barcode not found.");
-            }
-
+        else
+        {
+            int ratio = src.height()/maxLen;
+            if (src.height() > maxLen)
+            	// load the image, resize it, and convert it to grayscale
+            	src = resize(src, src.height()/ratio, maxLen, Imgproc.INTER_AREA);        	
+        }
+        
+        int i = 0;
+        Result result = null;
+        Mat detectedLabel;
+        Rect bRect;
+        LuminanceSource source;
+        BinaryBitmap bitmap;
+        Reader reader;
+        
+        if(squares == null)
+        {
+        	displayImage(src, "No squares found");
+        	
+        	System.out.println("Barcode not found.");
+        }
+        else
+        while(result == null && i < squares.size())
+        {
+	        bRect = Imgproc.boundingRect(squares.get(i));
+	        
+	        detectedLabel = src.submat(bRect);
+	        
+	        displayImage(detectedLabel, Integer.toString(i));
+	        
+	        try{
+	            //InputStream barCodeInputStream = new FileInputStream("c:\\users\\chris\\Documents\\detectedID.png");
+	            //BufferedImage barCodeBufferedImage = ImageIO.read(barCodeInputStream);
+	
+		        source = new BufferedImageLuminanceSource((BufferedImage) toBufferedImage(detectedLabel));
+		        bitmap = new BinaryBitmap(new HybridBinarizer(source));
+		        reader = new MultiFormatReader();
+		        result = reader.decode(bitmap);
+		        
+		        System.out.println(result);
+	        	}
+	            catch(Exception e)
+	            {
+	            	//System.out.println("Barcode not found.");
+	            	System.out.println("Barcode not found.");
+	            }
+	        i++;
+	        }
         // Save the visualized detection.
         //System.out.println("Writing "+ outFile);
         //Imgcodecs.imwrite(outFile, img);
