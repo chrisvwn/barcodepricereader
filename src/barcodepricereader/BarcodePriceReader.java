@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
@@ -963,7 +965,6 @@ class BarcodePriceReader {
             	src = resize(src, src.height()/ratio, maxLen, Imgproc.INTER_AREA);        	
         }
         
-        int i = 0;
         Result barcodeResult = null;
         String tessResult = null;
         Mat detectedLabel;
@@ -978,10 +979,10 @@ class BarcodePriceReader {
         {
         	displayImage(src, "No squares found");
         	
-        	System.out.println("Barcode not found.");
+        	System.out.println("No squares found.");
         }
         else
-        while(i < squares.size())
+        for (int i=0; i < squares.size(); i++)
         {
 	        bRect = Imgproc.boundingRect(squares.get(i));
 	        
@@ -998,26 +999,72 @@ class BarcodePriceReader {
 		        source = new BufferedImageLuminanceSource((BufferedImage) toBufferedImage(detectedLabel));
 		        bitmap = new BinaryBitmap(new HybridBinarizer(source));
 		        reader = new MultiFormatReader();
-
 		        barcodeResult = reader.decode(bitmap);
-		        System.out.println(barcodeResult);
-
-		        tessResult = tessInstance.doOCR((BufferedImage) toBufferedImage(detectedLabel));
-		        System.out.println(tessResult);
+		        
+		        System.out.println("Barcode:"+barcodeResult);
         	}
             catch(Exception e)
             {
             	//System.out.println("Barcode not found.");
-            	System.out.println("Barcode not found.");
+            	System.out.println("Barcode:Barcode not found.");
 	        }
 	        
+	        try
+	        {
+	        	//Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(13,5));
+	        	
+	            //Imgproc.cvtColor(detectedLabel, detectedLabel, Imgproc.COLOR_BGR2GRAY);
+
+	        	//Imgproc.morphologyEx(detectedLabel, detectedLabel, Imgproc.MORPH_BLACKHAT, rectKernel);
+	        	
+	        	//Imgproc.threshold(detectedLabel, detectedLabel, 200, 255, Imgproc.THRESH_BINARY);
+
+	            if(img.width() > src.height())
+	            {
+	            	maxLen = 200;
+	                int ratio = detectedLabel.width()/maxLen;
+	            	if (detectedLabel.width() > maxLen)
+	           			// load the image, resize it, and convert it to grayscale
+	           			detectedLabel = resize(detectedLabel, detectedLabel.width()/ratio, detectedLabel.height()/ratio, Imgproc.INTER_AREA);
+	            }
+	            
+	        	Imgproc.cvtColor(detectedLabel, detectedLabel, Imgproc.COLOR_BGR2GRAY);
+	        	
+	        	displayImage(detectedLabel, "detectedlabel binary");
+	        	
+	        	Imgproc.threshold(detectedLabel, detectedLabel, 150, 255, Imgproc.THRESH_BINARY);
+	        	
+	            displayImage(detectedLabel, "detectedlabel binary");
+	            
+		        tessResult = tessInstance.doOCR((BufferedImage) toBufferedImage(detectedLabel));
+
+		        if(tessResult.isEmpty())
+		        	System.out.println("Price:Price not found");
+		        else
+		        {
+		        	String regex = "(.*)\\d+,\\d+(.*)";
+		        	Pattern pattern = Pattern.compile(regex);
+		        	Matcher m = pattern.matcher(tessResult);
+
+        			System.out.println("Text:"+tessResult);
+
+		        	if(m.find())
+		        		for(int k=0; k < m.groupCount(); k++)
+		        			System.out.println("Price:"+m.group(k));
+		        	else
+			        	System.out.println("Price:Price not found");		        		
+		        }
+	        }
+	        catch(Exception e)
+	        {
+	        	System.out.println(e);
+	        }
 	        	source = null;
 	        	bitmap = null;
 	        	reader=null;
 	        	barcodeResult = null;
 	        	tessResult = null;
 	        	
-	        	i++;
 	       	}
         // Save the visualized detection.
         //System.out.println("Writing "+ outFile);
