@@ -285,7 +285,7 @@ class BarcodePriceReader {
         if (kernHt%2 != 0)
             kernHt++;
 
-        Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(13,5));
+        Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(21,5));
 
         Mat sqKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(21,kernHt));
 
@@ -462,7 +462,7 @@ class BarcodePriceReader {
         
         // Blur helps to decrease the amount of detected edges
     	
-    	Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(9,1));
+    	Mat rectKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(33,5));
 
         Mat sqKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(21,21));
     	
@@ -480,16 +480,15 @@ class BarcodePriceReader {
     	
     	Imgproc.morphologyEx(gray, gray, Imgproc.MORPH_BLACKHAT, rectKernel);
         
-    	//displayImage(gray, "blackhat");
+    	displayImage(gray, "blackhat");
     	
     	//Threshold the image
-    	//Imgproc.adaptiveThreshold(gray, gray, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY,15,-5);
-    	
-    	//displayImage(gray, "adaptive thresh");
+    	Imgproc.threshold(gray, gray, 100, 255, Imgproc.THRESH_BINARY);
+    	displayImage(gray, "adaptive thresh");
     	
     	//compute the Scharr gradient of the blackhat image and scale the
     	//result into the range [0, 255]
-    	Mat gradX = new Mat();
+    	//Mat gradX = new Mat();
     	//gradX = cv2.Sobel(blackhat, ddepth=cv2.CV_32F, dx=1, dy=0, ksize=-1)
     	//Imgproc.Sobel(gray, gradX, CvType.CV_32F, 1, 0, -1, 1, 0);
     	//Core.convertScaleAbs(gradX, gradX);
@@ -501,31 +500,32 @@ class BarcodePriceReader {
         filtered = gray.clone();
         
     	//perform a series of erosions and dilations
-    	//Imgproc.erode(filtered, filtered, new Mat(), new Point(-1,-1), 2);
-    	
-    	Imgproc.dilate(filtered, filtered, new Mat(), new Point(-1,-1), 10);
+    	//Imgproc.erode(filtered, filtered, new Mat(), new Point(-1,-1), 3);
         
-        //displayImage(filtered, "erode/dilate");
+        Imgproc.dilate(filtered, filtered, new Mat(), new Point(-1,-1), 20);
+
+        displayImage(filtered, "erodee");
 
         // Detect edges
         Mat edges = new Mat();
-        int thresh = 250;
+        int thresh = 300;
         //Imgproc.Canny(filtered, edges, thresh, thresh*2);
         Imgproc.Canny(filtered, edges, 50, 255);
-        //displayImage(edges, "edges");
+        displayImage(edges, "edges");
 
         filtered = null;
         
         // Dilate helps to connect nearby line segments
         Mat dilated_edges = new Mat();
-        Imgproc.dilate(edges, dilated_edges, new Mat(), new Point(-1, -1), 2, 1, new Scalar(0,255,0)); // default 3x3 kernel
+        //Imgproc.dilate(edges, dilated_edges, new Mat(), new Point(-1, -1), 2, 1, new Scalar(0,255,0)); // default 3x3 kernel
         //displayImage(dilated_edges, "dilated edges");
 
-        Imgproc.dilate(dilated_edges, dilated_edges, new Mat(), new Point(-1,-1), 20);
+        dilated_edges = edges;
+        //Imgproc.dilate(dilated_edges, dilated_edges, new Mat(), new Point(-1,-1), 20);
         
         //displayImage(dilated_edges, "dilated edges");
         
-        Imgproc.Canny(dilated_edges, dilated_edges, 250, 255);
+        //Imgproc.Canny(dilated_edges, dilated_edges, 250, 255);
         //displayImage(dilated_edges, "edges2");
         
         edges = null;
@@ -560,57 +560,77 @@ class BarcodePriceReader {
             // Note: absolute value of an area is used because
             // area may be positive or negative - in accordance with the
             // contour orientation
+            Rect bRect = Imgproc.boundingRect(approx_matofpoint);
+            int x=bRect.x;
+            int y=bRect.y;
+            int w=bRect.width;
+            int h=bRect.height;
 
+            int grWidth = src.width();
+
+            float ar;
+            
+            if (w > h)
+            	ar = (float)w / (float)h;
+            else
+            	ar = (float)h / (float)w;
+            float crWidth = (float)w / (float)grWidth;
+
+            System.out.println("ratio="+crWidth);
+            // check to see if the aspect ratio and coverage width are within
+            // acceptable criteria
+            if (ar > 1 && ar < 5 && crWidth > 0.07)
             if(approx_array.length == 4 )
             {
-            if (Math.abs(Imgproc.contourArea(new MatOfPoint2f(approx))) > src.height()*src.width()*0.10 &&
-                    Imgproc.isContourConvex(approx_matofpoint))
-            {
-                double maxCosine = 0;
-                for (int j = 2; j < 5; j++)
-                {
-                    double cosine = Math.abs(angle(approx_array[j%4], approx_array[j-2], approx_array[j-1]));
-                    maxCosine = Math.max(maxCosine, cosine);
-                }
-
-                if (maxCosine < 0.4) {
-
-                 //first sort the points into tl, tr, br, bl
-                    int smallest = 0;
-                    Point temp;
-
-                    //bubble sort based on x
-                    for (int idxPos = 0; idxPos < approx_array.length; idxPos++)
-                        for (int idx = idxPos; idx < approx_array.length; idx++)
-                        {
-                            if (approx_array[idx].x < approx_array[idxPos].x)
-                            {
-                                temp = approx_array[idxPos];
-                                approx_array[idxPos] = approx_array[idx];
-                                approx_array[idx] = temp;
-                            }
-                        }
-
-                    if (approx_array[1].y < approx_array[0].y)
-                    {
-                        temp = approx_array[0];
-                        approx_array[0] = approx_array[1];
-                        approx_array[1] = temp;
-                    }
-
-                    if (approx_array[3].y < approx_array[2].y)
-                    {
-                        temp = approx_array[2];
-                        approx_array[2] = approx_array[3];
-                        approx_array[3] = temp;
-                    }
-
-                    //order points clockwise from tl
-                    MatOfPoint final_array = new MatOfPoint(approx_array[0], approx_array[2], approx_array[3], approx_array[1]);
-
-                    squares.add(new MatOfPoint(final_array));
-                }
-            }
+	            //if (Math.abs(Imgproc.contourArea(new MatOfPoint2f(approx))) > src.height()*src.width()*0.10 &&
+	            //        Imgproc.isContourConvex(approx_matofpoint))
+	            if (Imgproc.isContourConvex(approx_matofpoint))
+	            {
+	                double maxCosine = 0;
+	                for (int j = 2; j < 5; j++)
+	                {
+	                    double cosine = Math.abs(angle(approx_array[j%4], approx_array[j-2], approx_array[j-1]));
+	                    maxCosine = Math.max(maxCosine, cosine);
+	                }
+	
+	                if (maxCosine < 0.4) {
+	
+	                 //first sort the points into tl, tr, br, bl
+	                    int smallest = 0;
+	                    Point temp;
+	
+	                    //bubble sort based on x
+	                    for (int idxPos = 0; idxPos < approx_array.length; idxPos++)
+	                        for (int idx = idxPos; idx < approx_array.length; idx++)
+	                        {
+	                            if (approx_array[idx].x < approx_array[idxPos].x)
+	                            {
+	                                temp = approx_array[idxPos];
+	                                approx_array[idxPos] = approx_array[idx];
+	                                approx_array[idx] = temp;
+	                            }
+	                        }
+	
+	                    if (approx_array[1].y < approx_array[0].y)
+	                    {
+	                        temp = approx_array[0];
+	                        approx_array[0] = approx_array[1];
+	                        approx_array[1] = temp;
+	                    }
+	
+	                    if (approx_array[3].y < approx_array[2].y)
+	                    {
+	                        temp = approx_array[2];
+	                        approx_array[2] = approx_array[3];
+	                        approx_array[3] = temp;
+	                    }
+	
+	                    //order points clockwise from tl
+	                    MatOfPoint final_array = new MatOfPoint(approx_array[0], approx_array[2], approx_array[3], approx_array[1]);
+	
+	                    squares.add(new MatOfPoint(final_array));
+	                }
+	            }
             }
             else
             {
@@ -647,8 +667,9 @@ class BarcodePriceReader {
                 
                 //if the area of the contour rotated if necessary is > 10000
                 //and is convex
-                if (cropped.height()*cropped.width() > src.height()*src.width()*0.10 &&
-                        !Imgproc.isContourConvex(approx_matofpoint))
+                //if (cropped.height()*cropped.width() > src.height()*src.width()*0.10 &&
+                //        !Imgproc.isContourConvex(approx_matofpoint))
+                if (!Imgproc.isContourConvex(approx_matofpoint))
             	{
                 	Mat tmp = src.clone();
                 	Imgproc.rectangle(tmp, rect_array[0], rect_array[2], new Scalar(255,255,255), 5);
@@ -718,7 +739,7 @@ class BarcodePriceReader {
         	return(null);
         }
 
-        int maxLen = 800;
+        int maxLen = 1200;
         
         if(src.width() > src.height())
         {
@@ -909,7 +930,7 @@ class BarcodePriceReader {
     
 	//static{ System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
 	
-    public void run(String inFile) {
+    public void run(String inFile, ITesseract tessInstance) {
         //System.out.println("\nRunning MRZ search ...");
             	    	
         Mat img = Imgcodecs.imread(inFile);
@@ -948,7 +969,7 @@ class BarcodePriceReader {
 
         Mat src = img.clone();
         
-        int maxLen = 800;
+        int maxLen = 1200;
         
         if(img.width() > src.height())
         {
@@ -972,8 +993,12 @@ class BarcodePriceReader {
         LuminanceSource source;
         BinaryBitmap bitmap;
         Reader reader;
-        ITesseract tessInstance = new Tesseract();
 
+    	String regex = ".*(\\d+\\,\\d{2}).*";
+    	Pattern pattern = Pattern.compile(regex);
+ 	   
+        List<String> allBarcodes = new ArrayList<String>();
+        List<String> allPrices = new ArrayList<String>();
         
         if(squares == null)
         {
@@ -988,8 +1013,7 @@ class BarcodePriceReader {
 	        
 	        detectedLabel = src.submat(bRect);
 	        
-	        displayImage(detectedLabel, Integer.toString(i));
-	        
+	        //displayImage(detectedLabel, Integer.toString(i));
        
 	        try
 	        {
@@ -1002,6 +1026,9 @@ class BarcodePriceReader {
 		        barcodeResult = reader.decode(bitmap);
 		        
 		        System.out.println("Barcode:"+barcodeResult);
+		        
+		        if(!allBarcodes.contains(barcodeResult.toString()))
+		        	allBarcodes.add(barcodeResult.toString());
         	}
             catch(Exception e)
             {
@@ -1019,38 +1046,41 @@ class BarcodePriceReader {
 	        	
 	        	//Imgproc.threshold(detectedLabel, detectedLabel, 200, 255, Imgproc.THRESH_BINARY);
 
-	            if(img.width() > src.height())
-	            {
-	            	maxLen = 200;
-	                int ratio = detectedLabel.width()/maxLen;
-	            	if (detectedLabel.width() > maxLen)
-	           			// load the image, resize it, and convert it to grayscale
-	           			detectedLabel = resize(detectedLabel, detectedLabel.width()/ratio, detectedLabel.height()/ratio, Imgproc.INTER_AREA);
-	            }
+//	            if(img.width() > src.height())
+//	            {
+//	            	maxLen = 250;
+//	                int ratio = detectedLabel.width()/maxLen;
+//	            	if (detectedLabel.width() > maxLen)
+//	           			// load the image, resize it, and convert it to grayscale
+//	           			detectedLabel = resize(detectedLabel, detectedLabel.width()/ratio, detectedLabel.height()/ratio, Imgproc.INTER_AREA);
+//	            }
 	            
-	        	Imgproc.cvtColor(detectedLabel, detectedLabel, Imgproc.COLOR_BGR2GRAY);
+	        	//Imgproc.cvtColor(detectedLabel, detectedLabel, Imgproc.COLOR_BGR2GRAY);
 	        	
-	        	displayImage(detectedLabel, "detectedlabel binary");
+//	        	displayImage(detectedLabel, "detectedlabel binary");
 	        	
-	        	Imgproc.threshold(detectedLabel, detectedLabel, 150, 255, Imgproc.THRESH_BINARY);
+	        	//Imgproc.threshold(detectedLabel, detectedLabel, 150, 255, Imgproc.THRESH_BINARY);
 	        	
 	            displayImage(detectedLabel, "detectedlabel binary");
 	            
 		        tessResult = tessInstance.doOCR((BufferedImage) toBufferedImage(detectedLabel));
 
+		        //tessResult = tessResult.replace(" ", "");
+		        
 		        if(tessResult.isEmpty())
 		        	System.out.println("Price:Price not found");
 		        else
 		        {
-		        	String regex = "(.*)\\d+,\\d+(.*)";
-		        	Pattern pattern = Pattern.compile(regex);
 		        	Matcher m = pattern.matcher(tessResult);
 
         			System.out.println("Text:"+tessResult);
 
 		        	if(m.find())
-		        		for(int k=0; k < m.groupCount(); k++)
-		        			System.out.println("Price:"+m.group(k));
+		        	{
+				        if(!allPrices.contains(m.group(1)))
+				        	allPrices.add(m.group(1));
+	        			System.out.println("Price:"+m.group(1));
+		        	}
 		        	else
 			        	System.out.println("Price:Price not found");		        		
 		        }
@@ -1066,6 +1096,29 @@ class BarcodePriceReader {
 	        	tessResult = null;
 	        	
 	       	}
+        
+        int maxN;
+        
+        if(allBarcodes.size() > allPrices.size())
+        	maxN = allBarcodes.size();
+        else
+        	maxN = allPrices.size();
+        
+        for(int j=0; j < maxN; j++)
+        {
+        	String strOut = "Barcode["+j+"]: ";
+        	
+        	if(j < allBarcodes.size())
+        		strOut += allBarcodes.get(j);
+        	
+        	strOut += " Price["+j+"]: ";
+        	
+        	if(j < allPrices.size())
+        		strOut += allPrices.get(j);
+        	
+        	System.out.println(strOut);
+        }
+        
         // Save the visualized detection.
         //System.out.println("Writing "+ outFile);
         //Imgcodecs.imwrite(outFile, img);
@@ -1077,8 +1130,35 @@ class BarcodePriceReader {
 		
 		System.gc();
 		
+        ITesseract tessInstance = new Tesseract();
+        
 		try{
-			new BarcodePriceReader().run(args[0]);
+			//new BarcodePriceReader().run(args[0], tessInstance);
+			
+        	File dir = new File(args[0]);
+        	File[] files = dir.listFiles(new FileFilter() {
+        	    public boolean accept(File dir, String name) {
+        	        return name.toLowerCase().endsWith(".jpg");
+        	    }
+
+				@Override
+				public boolean accept(File arg0) {
+					// TODO Auto-generated method stub
+					return arg0.toString().toLowerCase().endsWith(".jpg");
+				}
+        	});
+            	if (files.length == 0) {
+            	    System.out.println("The directory is empty");
+            	} else {
+            	    for (File aFile : files) {
+            	    	
+            	    	String fName = aFile.toString();
+            	    	
+            	    	System.out.print(fName + ": ");
+            	    	new BarcodePriceReader().run(fName, tessInstance);
+            	    }
+            	}
+			
 			System.gc();
 		}	
 		catch(Exception e)
