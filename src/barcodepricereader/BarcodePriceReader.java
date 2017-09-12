@@ -88,48 +88,48 @@ class BarcodePriceReader {
 	
 	public void displayImage(Mat img, String label)
 	{   
-		//BufferedImage img=ImageIO.read(new File("/HelloOpenCV/lena.png"));
-		Mat tmp = img.clone();
-				
-		if (tmp.width() > 800 || tmp.height() > 800)
-            while (tmp.width() > 800 || tmp.height() > 800)
-                Imgproc.pyrDown(tmp, tmp);
-		
-		Image img2 = toBufferedImage(tmp);
-		
-		tmp = null;
-		
-		ImageIcon icon=new ImageIcon(img2);
-		
-		JFrame frame=new JFrame(label);
-		
-		frame.setLayout(new FlowLayout());        
-		
-		frame.setSize(img2.getWidth(null)+50, img2.getHeight(null)+50);     
-		
-		JLabel lbl=new JLabel();
-		
-		lbl.setIcon(icon);
-		
-		frame.add(lbl);
-		
-		frame.setVisible(true);
-		
-		frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-		
-		try{
-			Thread.sleep(3000);
-		}
-			catch(Exception e){
-		}
-		
-		frame.setVisible(false);
-		
-		frame.dispose();
-		
-		img2 = null;
-		
-		icon = null;
+//		//BufferedImage img=ImageIO.read(new File("/HelloOpenCV/lena.png"));
+//		Mat tmp = img.clone();
+//				
+//		if (tmp.width() > 800 || tmp.height() > 800)
+//            while (tmp.width() > 800 || tmp.height() > 800)
+//                Imgproc.pyrDown(tmp, tmp);
+//		
+//		Image img2 = toBufferedImage(tmp);
+//		
+//		tmp = null;
+//		
+//		ImageIcon icon=new ImageIcon(img2);
+//		
+//		JFrame frame=new JFrame(label);
+//		
+//		frame.setLayout(new FlowLayout());        
+//		
+//		frame.setSize(img2.getWidth(null)+50, img2.getHeight(null)+50);     
+//		
+//		JLabel lbl=new JLabel();
+//		
+//		lbl.setIcon(icon);
+//		
+//		frame.add(lbl);
+//		
+//		frame.setVisible(true);
+//		
+//		frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+//		
+//		try{
+//			Thread.sleep(3000);
+//		}
+//			catch(Exception e){
+//		}
+//		
+//		frame.setVisible(false);
+//		
+//		frame.dispose();
+//		
+//		img2 = null;
+//		
+//		icon = null;
 	}
 	   
 	public Image toBufferedImage(Mat m){
@@ -239,7 +239,7 @@ class BarcodePriceReader {
     	
     	// find contours in the thresholded image and sort them by their
     	// size
-    	List<MatOfPoint>cnts = new ArrayList<MatOfPoint>(); 
+    	List<MatOfPoint>cnts = new ArrayList<MatOfPoint>();
     	
     	Imgproc.findContours(closed.clone(), cnts, new Mat(), Imgproc.RETR_EXTERNAL,
         		Imgproc.CHAIN_APPROX_SIMPLE);
@@ -483,8 +483,10 @@ class BarcodePriceReader {
     	displayImage(gray, "blackhat");
     	
     	//Threshold the image
-    	Imgproc.threshold(gray, gray, 100, 255, Imgproc.THRESH_BINARY);
-    	displayImage(gray, "adaptive thresh");
+    	//Imgproc.threshold(gray, gray, 100, 255, Imgproc.THRESH_BINARY);
+    	//Imgproc.adaptiveThreshold(gray, gray, 200, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
+    	//         Imgproc.THRESH_BINARY, 11, 12);
+    	//displayImage(gray, "thresh");
     	
     	//compute the Scharr gradient of the blackhat image and scale the
     	//result into the range [0, 255]
@@ -576,10 +578,10 @@ class BarcodePriceReader {
             	ar = (float)h / (float)w;
             float crWidth = (float)w / (float)grWidth;
 
-            System.out.println("ratio="+crWidth);
+            //System.out.println("ratio="+crWidth);
             // check to see if the aspect ratio and coverage width are within
             // acceptable criteria
-            if (ar > 1 && ar < 5 && crWidth > 0.07)
+            if (ar > 1 && ar < 5 && crWidth > 0.15)
             if(approx_array.length == 4 )
             {
 	            //if (Math.abs(Imgproc.contourArea(new MatOfPoint2f(approx))) > src.height()*src.width()*0.10 &&
@@ -994,7 +996,7 @@ class BarcodePriceReader {
         BinaryBitmap bitmap;
         Reader reader;
 
-    	String regex = ".*(\\d+\\,\\d{2}).*";
+    	String regex = "(\\d+,\\d{2})";
     	Pattern pattern = Pattern.compile(regex);
  	   
         List<String> allBarcodes = new ArrayList<String>();
@@ -1004,7 +1006,7 @@ class BarcodePriceReader {
         {
         	displayImage(src, "No squares found");
         	
-        	System.out.println("No squares found.");
+        	//System.out.println("No candidates found.");
         }
         else
         for (int i=0; i < squares.size(); i++)
@@ -1025,7 +1027,7 @@ class BarcodePriceReader {
 		        reader = new MultiFormatReader();
 		        barcodeResult = reader.decode(bitmap);
 		        
-		        System.out.println("Barcode:"+barcodeResult);
+		        //System.out.println("Barcode:"+barcodeResult);
 		        
 		        if(!allBarcodes.contains(barcodeResult.toString()))
 		        	allBarcodes.add(barcodeResult.toString());
@@ -1033,7 +1035,7 @@ class BarcodePriceReader {
             catch(Exception e)
             {
             	//System.out.println("Barcode not found.");
-            	System.out.println("Barcode:Barcode not found.");
+            	//System.out.println("Barcode:Barcode not found.");
 	        }
 	        
 	        try
@@ -1068,21 +1070,25 @@ class BarcodePriceReader {
 		        //tessResult = tessResult.replace(" ", "");
 		        
 		        if(tessResult.isEmpty())
-		        	System.out.println("Price:Price not found");
+		        {
+		        	//System.out.println("Price:Price not found");
+		        }
 		        else
 		        {
 		        	Matcher m = pattern.matcher(tessResult);
 
-        			System.out.println("Text:"+tessResult);
+        			//System.out.println("Text:"+tessResult);
 
 		        	if(m.find())
 		        	{
 				        if(!allPrices.contains(m.group(1)))
 				        	allPrices.add(m.group(1));
-	        			System.out.println("Price:"+m.group(1));
+	        			//System.out.println("Price:"+m.group(1));
 		        	}
 		        	else
-			        	System.out.println("Price:Price not found");		        		
+		        	{
+			        	//System.out.println("Price:Price not found");
+		        	}
 		        }
 	        }
 	        catch(Exception e)
@@ -1103,6 +1109,9 @@ class BarcodePriceReader {
         	maxN = allBarcodes.size();
         else
         	maxN = allPrices.size();
+        
+        if(maxN == 0)
+        	System.out.println("Barcode:Not found Price:Not found");
         
         for(int j=0; j < maxN; j++)
         {
@@ -1133,8 +1142,11 @@ class BarcodePriceReader {
         ITesseract tessInstance = new Tesseract();
         
 		try{
-			//new BarcodePriceReader().run(args[0], tessInstance);
+			//start single image
+//			new BarcodePriceReader().run(args[0], tessInstance);
+			//end single image
 			
+			//start loop image directory
         	File dir = new File(args[0]);
         	File[] files = dir.listFiles(new FileFilter() {
         	    public boolean accept(File dir, String name) {
@@ -1158,6 +1170,7 @@ class BarcodePriceReader {
             	    	new BarcodePriceReader().run(fName, tessInstance);
             	    }
             	}
+			//end loop image directory
 			
 			System.gc();
 		}	
